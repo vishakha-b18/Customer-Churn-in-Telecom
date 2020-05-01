@@ -24,7 +24,7 @@ require(tree)
 ?tree
 
 #reading data into data frame
-df_telecom = read.csv("/Users/vishakhabhattacharjee/Documents/Machine Learning Lecture/Project Shaurya/WA_Fn-UseC_-Telco-Customer-Churn.csv")
+df_telecom = read.csv("Telco-Customer-Churn.csv")
 
 #### Data Overview ####
 
