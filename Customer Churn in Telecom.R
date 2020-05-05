@@ -21,6 +21,7 @@ library(reshape2)
 library(tidyverse)
 suppressMessages(library(caret))
 require(tree)
+library(MLeval)
 ?tree
 
 #reading data into data frame
@@ -150,6 +151,89 @@ dominanceMatrix(da_telecom, type="complete",fit.functions = "r2.m", ordered=TRUE
 #also using caret used for feature importance
 gbmImp <- varImp(logitMod, scale = FALSE)
 
+##################################### CREATING MODELS USING CARET WITHOUT SMOTE
+df_telecom_b = data.frame(df_telecom[,-c(1,20)])
+df_telecom_b$SeniorCitizen <- as.factor(df_telecom_b$SeniorCitizen)
+df_telecom_b$tenure_year <- as.factor(df_telecom_b$tenure_year)
+df_telecom_b$Churn <- as.factor(df_telecom_b$Churn)
+       
+#K-fold cross-validation ---1 (Ensemble Bagging Algorithm)
+# Define training control
+set.seed(123) 
+train.control <- trainControl(method = "cv", number = 10,
+                              savePredictions = TRUE,classProbs = TRUE)
+model_treebag <- train(Churn ~., data = df_telecom_b, method = "treebag",
+                       trControl = train.control,metric = "Accuracy")
+print(model_treebag)  
+
+#With ROC as the metric
+train.control <- trainControl(method = "cv", number = 10,summaryFunction = twoClassSummary,
+                              savePredictions = TRUE,classProbs = TRUE)
+
+model_treebag <- train(Churn ~., data = df_telecom_b, method = "treebag",
+                       trControl = train.control,metric = "ROC")
+print(model_treebag)  
+
+
+#K-fold cross-validation ---2 (Logistic Regression Algorithm)
+# Define training control
+set.seed(123) 
+train.control <- trainControl(method = "cv", number = 10,
+                              savePredictions = TRUE,classProbs = TRUE)
+model_glm <- train(Churn ~., data = df_telecom_b, method = "glm", family = "binomial",
+                   trControl = train.control,metric = "Accuracy")
+print(model_glm)  
+
+#With ROC as the metric
+train.control <- trainControl(method = "cv", number = 10,summaryFunction = twoClassSummary,
+                              savePredictions = TRUE,classProbs = TRUE)
+
+model_glm <- train(Churn ~., data = df_telecom_b, method = "glm", family = "binomial",
+                   trControl = train.control,metric = "ROC")
+print(model_glm)  
+
+
+#K-fold cross-validation ---3 (Random Forest Algorithm)
+set.seed(123) 
+train.control <- trainControl(method = "cv", number = 10,
+                              savePredictions = TRUE,classProbs = TRUE)
+model_rf <- train(Churn ~., data = df_telecom_b, method = "rf",
+                  trControl = train.control, metric = "Accuracy")
+print(model_rf) 
+
+#With ROC as the metric
+train.control <- trainControl(method = "cv", number = 10,summaryFunction = twoClassSummary,
+                              savePredictions = TRUE,classProbs = TRUE)
+
+model_rf <- train(Churn ~., data = df_telecom_b, method = "rf",
+                  trControl = train.control,metric = "ROC")
+print(model_rf)  
+
+#Confusion Matrix
+confusionMatrix(model_rf)
+
+
+#K-fold cross-validation ---4 (C5.0 Decision Trees)
+set.seed(123) 
+train.control <- trainControl(method = "cv", number = 10,
+                              savePredictions = TRUE,classProbs = TRUE)
+model_DT <- train(Churn ~., data = df_telecom_b, method = "C5.0",
+                  trControl = train.control, metric = "Accuracy")
+#With ROC as the metric
+train.control <- trainControl(method = "cv", number = 10,summaryFunction = twoClassSummary,
+                              savePredictions = TRUE,classProbs = TRUE)
+
+model_DT <- train(Churn ~., data = df_telecom_b, method = "C5.0",
+                  trControl = train.control,metric = "ROC")
+print(model_DT)  
+
+#Printing the ROC curves for the various models
+res <- evalm(list(model_treebag, model_glm, model_rf, model_DT),gnames= c('treebag', 'logistic','random forest','C5.0 Decision Trees'))
+
+
+###################################### END OF CREATING MODELS IN CARET WITHOUT SMOTE
+ 
+###################################### CREATING MODELS IN CARET USING SMOTE      
 #as the data is highly skewed and there is a data imbalance we would sample the data to improve performance on imbalanced data
 print(table(df_telecom$Churn)) #No - 5163  Yes - 1869 
 print(prop.table(table(df_telecom$Churn))) #No - 0.734215     Yes - 0.265785 
@@ -162,21 +246,59 @@ df_telecom_c$Churn <- as.factor(df_telecom_c$Churn)
 df_telecom_c <- SMOTE(Churn ~ ., df_telecom_c, perc.over = 100, perc.under=200)
 prop.table(table(df_telecom_c$Churn))
 
-#K-fold cross-validation ---2 (Ensemble Bagging Algorithm)
+#K-fold cross-validation ---1 (Ensemble Bagging Algorithm)
 # Define training control
-set.seed(123) 
+set.seed(123)
+#Accuracy as metric       
+train.control <- trainControl(method = "cv", number = 10,
+                              savePredictions = TRUE,classProbs = TRUE)
+model_treebag <- train(Churn ~., data = df_telecom_c, method = "treebag",
+               trControl = train.control,metric = "Accuracy")
+print(model_treebag)        
+
+#ROC as metric      
 train.control <- trainControl(method = "cv", number = 10,
                               repeats = 3,savePredictions = TRUE,summaryFunction = twoClassSummary,classProbs = TRUE)
-model <- train(Churn ~., data = df_telecom_c, method = "treebag",
+model_treebag <- train(Churn ~., data = df_telecom_c, method = "treebag",
                trControl = train.control,metric = "ROC")
-print(model)  #Accuracy - 0.8442996  Kappa - 0.6886018
+print(model_treebag) 
 
 
 #Confusion Matrix
-confusionMatrix(model)
+confusionMatrix(model_treebag)
+
+
+#K-fold cross-validation ---2 (Logistic Regression Algorithm)
+# Define training control
+set.seed(123) 
+#With Accuracy as the metric       
+train.control <- trainControl(method = "cv", number = 10,
+                              savePredictions = TRUE,classProbs = TRUE)
+model_glm <- train(Churn ~., data = df_telecom_c, method = "glm", family = "binomial",
+               trControl = train.control,metric = "Accuracy")
+print(model_glm) 
+
+#With ROC as the metric
+train.control <- trainControl(method = "cv", number = 10,summaryFunction = twoClassSummary,
+                              savePredictions = TRUE,classProbs = TRUE)
+
+model_glm <- train(Churn ~., data = df_telecom_c, method = "glm", family = "binomial",
+               trControl = train.control,metric = "ROC")
+print(model_glm)  
+       
 
 #K-fold cross-validation ---3 (Random Forest Algorithm)
-set.seed(123) 
+set.seed(123)
+#With Accuracy as the metric      
+train.control <- trainControl(method = "cv", number = 10,
+                              savePredictions = TRUE,classProbs = TRUE)
+model_rf <- train(Churn ~., data = df_telecom_c, method = "rf",
+                  trControl = train.control, metric = "Accuracy")
+print(model_rf)
+
+#With ROC as the metric
+train.control <- trainControl(method = "cv", number = 10,summaryFunction = twoClassSummary,
+                              savePredictions = TRUE,classProbs = TRUE)       
 model_rf <- train(Churn ~., data = df_telecom_c, method = "rf",
                trControl = train.control,metric = "ROC")
 print(model_rf) 
@@ -184,7 +306,32 @@ print(model_rf)
 #Confusion Matrix
 confusionMatrix(model_rf)
 
-#Decision Tree Algorithm ---4
+#K-fold cross-validation ---4 (C5.0 Decision Trees)
+set.seed(123) 
+#With Accuraccy as the metric       
+train.control <- trainControl(method = "cv", number = 10,
+                              savePredictions = TRUE,classProbs = TRUE)
+model_DT <- train(Churn ~., data = df_telecom_c, method = "C5.0",
+                  trControl = train.control, metric = "Accuracy")
+print(model_DT)
+
+#With ROC as the metric
+train.control <- trainControl(method = "cv", number = 10,summaryFunction = twoClassSummary,
+                              savePredictions = TRUE,classProbs = TRUE)
+
+model_DT <- train(Churn ~., data = df_telecom_c, method = "C5.0",
+                  trControl = train.control,metric = "ROC")
+print(model_DT)  
+
+###################################### END OF CREATING MODELS IN CARET USING SMOTE             
+       
+#Printing the ROC Curves
+library(MLeval)
+res <- evalm(list(model_treebag, model_glm, model_rf, model_DT),gnames= c('treebag', 'logistic','random forest','C5.0 Decision Trees'))
+res$
+
+#Trying another model       
+#Decision Tree Algorithm ---5
 index = createDataPartition(y=df_telecom_c$Churn, p=0.7, list=FALSE)
 train.set = df_telecom_c[index,]
 test.set = df_telecom_c[-index,]
